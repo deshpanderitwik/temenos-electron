@@ -1,0 +1,55 @@
+appId: com.temenos.app
+productName: Temenos
+directories:
+  output: dist-electron
+  buildResources: public
+asar: true
+files:
+  - dist/electron/**/*
+  - out/**/*
+  - package.json
+  - data/**/*
+extraResources:
+  - from: data
+    to: data
+  - from: out
+    to: out
+asarUnpack:
+  - data/**/*
+  - out/**/*
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  icon: public/logo.png
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: public/logo.png
+  requestedExecutionLevel: asInvoker
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  icon: public/logo.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+dmg:
+  sign: false
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+publish: null
