@@ -31,11 +31,6 @@ Temenos is a sacred container for Jungian healing work, powered by advanced lang
    ```bash
    npm run dev
    ```
-
-5. Run the development server:
-   ```bash
-   npm run dev
-   ```
    Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 6. For production Electron build:
@@ -58,7 +53,6 @@ The application now supports real AI API calls through Electron's IPC system:
 1. Copy `env.example` to `.env.local`
 2. Add your API keys:
    ```
-   PERPLEXITY_API_KEY=your_key_here
    XAI_API_KEY=your_key_here
    ENCRYPTION_PASSWORD=your_password_here
    ```
@@ -94,7 +88,7 @@ Example config.json:
 - **Real AI Responses** - No more placeholder messages
 - **Conversation Persistence** - All conversations are saved and retrievable
 - **Secure Data Storage** - All data is encrypted and stored locally
-- **Multiple AI Models** - Choose between Perplexity and Grok
+- **AI Integration** - Powered by xAI's Grok model
 
 ## Technology Stack
 
