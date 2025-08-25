@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
+// TipTap is not used in ChatPanel; input uses TextareaAutosize
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -157,24 +156,6 @@ const ChatPanel = forwardRef<{ addContextText: (text: string) => void }, ChatPan
       </blockquote>
     ),
   };
-
-
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-    ],
-    content: '<p>Start your story here...</p>',
-    immediatelyRender: false,
-    editorProps: {
-      attributes: {
-        class: 'prose prose-invert max-w-none focus:outline-none',
-      },
-    },
-  });
-
-
-
   // Scroll to top of the latest message
   const scrollToLatestMessage = useCallback(() => {
     if (messagesContainerRef.current && messages.length > 0) {

@@ -20,10 +20,14 @@
  */
 
 import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
+import Document from '@tiptap/extension-document';
+import Paragraph from '@tiptap/extension-paragraph';
+import Text from '@tiptap/extension-text';
+import HardBreak from '@tiptap/extension-hard-break';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import Typography from '@tiptap/extension-typography';
+import { UndoRedo } from '@tiptap/extensions';
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { convertQuotesInSelection } from '../utils/quoteConversion';
 import { moveToNextSentence, moveToPreviousSentence } from '../utils/sentenceNavigation';
@@ -88,6 +92,8 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
   // Essential refs only
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Guard to prevent onUpdate from firing during programmatic content sets
+  const isProgrammaticContentChangeRef = useRef<boolean>(false);
   
   // Helper function to get editor content
   const getEditorContent = (editor: any): string => {
@@ -95,32 +101,69 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
     return editor.getHTML();
   };
 
-  // Only create editor on client side
+  // Ensure empty paragraphs are preserved by representing them as <p>&nbsp;</p>
+  const normalizeEmptyParagraphs = (html: string): string => {
+    if (!html) return html;
+    // Replace exactly empty paragraphs or <p><br></p> with a non-breaking space
+    return html
+      .replace(/<p>\s*<\/p>/g, '<p>&nbsp;</p>')
+      .replace(/<p><br\s*\/>?<\/p>/g, '<p>&nbsp;</p>');
+  };
+
+  // Convert leading spaces/tabs at the start of paragraphs into &nbsp; to persist indentation
+  const preserveLeadingIndentation = (html: string): string => {
+    if (!html) return html;
+    return html.replace(/<p>([ \t]+)/g, (_match, ws: string) => {
+      let nbsp = '';
+      for (let i = 0; i < ws.length; i++) {
+        const ch = ws[i];
+        if (ch === '\t') {
+          nbsp += '&nbsp;&nbsp;&nbsp;&nbsp;';
+        } else if (ch === ' ') {
+          nbsp += '&nbsp;';
+        }
+      }
+      return `<p>${nbsp}`;
+    });
+  };
+
+  // Compute initial content for (re)creation
+  const initialContent = currentNarrative
+    ? (isDraftMode
+        ? (currentNarrative.draftContent || '<p>&nbsp;</p>')
+        : (currentNarrative.content || '<p>&nbsp;</p>'))
+    : '<p>&nbsp;</p>';
+
+  // Only create editor on client side. Recreate when narrative id changes to isolate history
   const editor = isClient ? useEditor({
     extensions: [
-      StarterKit.configure({
-        history: false, // Disable history from StarterKit since we'll add it separately
+      Document,
+      Paragraph,
+      Text,
+      HardBreak.configure({
+        keepMarks: true,
       }),
       Typography,
       Placeholder.configure({
         placeholder: 'Begin writing your narrative here... Share your thoughts, insights, and the story that emerges from your exploration.',
       }),
       CharacterCount,
-      // History.configure({
-      //   depth: 100,
-      // }),
+      UndoRedo.configure({
+        depth: 100, // Store up to 100 undo steps
+        newGroupDelay: 300, // Group operations within 300ms as one undo step
+      }),
     ],
-    content: '<p></p>',
+    content: initialContent,
     immediatelyRender: false,
     parseOptions: {
       preserveWhitespace: 'full',
     },
     onUpdate: ({ editor }) => {
       // ✅ Prevent content updates while loading to avoid race conditions
-      if (isLoading) return;
+      if (isLoading || isProgrammaticContentChangeRef.current) return;
       
-      // Get content from editor
-      const content = getEditorContent(editor);
+      // Get content from editor and normalize empty paragraphs
+      const content = preserveLeadingIndentation(normalizeEmptyParagraphs(getEditorContent(editor)));
       
       // Update the appropriate content based on current mode - SIMPLE LOGIC
       if (isDraftMode) {
@@ -153,13 +196,42 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
       },
 
     },
-  }) : null;
+  }, [currentNarrative?.id]) : null;
 
   // Ensure editor is properly initialized
   useEffect(() => {
     if (editor && !editor.isDestroyed) {
       // Focus the editor when it's ready
       editor.commands.focus();
+    }
+  }, [editor]);
+
+  // Function to clear undo/redo history when switching narratives
+  const clearUndoHistory = useCallback(() => {
+    if (!editor) return;
+    
+    try {
+      // Clear the undo/redo history by setting content
+      // This effectively resets the history stack for narrative isolation
+      const currentContent = editor.getHTML();
+      
+      // Clear content and set it again to reset the undo stack
+      isProgrammaticContentChangeRef.current = true;
+      editor.commands.clearContent();
+      editor.commands.setContent(currentContent, { emitUpdate: false, parseOptions: { preserveWhitespace: 'full' } });
+      isProgrammaticContentChangeRef.current = false;
+      
+      // Force focus to ensure the editor is ready
+      editor.commands.focus();
+    } catch (error) {
+      console.error('Error clearing undo history:', error);
+      // Fallback: just set the content directly
+      if (editor) {
+        const currentContent = editor.getHTML();
+        isProgrammaticContentChangeRef.current = true;
+        editor.commands.setContent(currentContent, { emitUpdate: false, parseOptions: { preserveWhitespace: 'full' } });
+        isProgrammaticContentChangeRef.current = false;
+      }
     }
   }, [editor]);
 
@@ -263,14 +335,19 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
         
         // Then, load the appropriate content based on current mode
         const contentToLoad = isDraftMode 
-          ? (currentNarrative.draftContent || '<p></p>')
-          : (currentNarrative.content || '<p></p>');
+          ? preserveLeadingIndentation(normalizeEmptyParagraphs(currentNarrative.draftContent || '<p>&nbsp;</p>'))
+          : preserveLeadingIndentation(normalizeEmptyParagraphs(currentNarrative.content || '<p>&nbsp;</p>'));
         
         // Only set content if it's different to prevent cursor jumping
         const currentContent = editor.getHTML();
         if (currentContent !== contentToLoad) {
-          editor.commands.setContent(contentToLoad, false, { preserveWhitespace: 'full' });
+          isProgrammaticContentChangeRef.current = true;
+          editor.commands.setContent(contentToLoad, { emitUpdate: false, parseOptions: { preserveWhitespace: 'full' } });
+          isProgrammaticContentChangeRef.current = false;
         }
+        
+        // Clear undo history when switching modes to prevent content bleeding
+        clearUndoHistory();
       } else {
         // Reset to default state when no narrative is selected
         setNarrativeState({
@@ -284,16 +361,21 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
         
         // Only set content if it's different to prevent cursor jumping
         const currentContent = editor.getHTML();
-        if (currentContent !== '<p></p>') {
-          editor.commands.setContent('<p></p>', false, { preserveWhitespace: 'full' });
+        if (currentContent !== '<p>&nbsp;</p>') {
+          isProgrammaticContentChangeRef.current = true;
+          editor.commands.setContent('<p>&nbsp;</p>', { emitUpdate: false, parseOptions: { preserveWhitespace: 'full' } });
+          isProgrammaticContentChangeRef.current = false;
         }
+        
+        // Clear undo history when no narrative is selected
+        clearUndoHistory();
       }
     } catch (error) {
       console.error('Error loading narrative:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [currentNarrative, editor, isDraftMode]); // ✅ All dependencies included
+  }, [currentNarrative?.id, editor, clearUndoHistory]); // ✅ Only reload when narrative changes, not on mode toggle
 
   // Simple auto-save function
   const handleAutoSave = useCallback(async () => {
@@ -382,13 +464,15 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
     
     // Load the appropriate content for the new mode
     const contentToLoad = newMode 
-      ? narrativeState.draftContent || '<p></p>'
-      : narrativeState.mainContent || '<p></p>';
+      ? preserveLeadingIndentation(normalizeEmptyParagraphs(narrativeState.draftContent || '<p>&nbsp;</p>'))
+      : preserveLeadingIndentation(normalizeEmptyParagraphs(narrativeState.mainContent || '<p>&nbsp;</p>'));
     
     // Set content only if different to prevent cursor jumping
     const currentContent = editor.getHTML();
     if (currentContent !== contentToLoad) {
-      editor.commands.setContent(contentToLoad, false, { preserveWhitespace: 'full' });
+      isProgrammaticContentChangeRef.current = true;
+      editor.commands.setContent(contentToLoad, { emitUpdate: false, parseOptions: { preserveWhitespace: 'full' } });
+      isProgrammaticContentChangeRef.current = false;
     }
   }, [editor, isDraftMode, narrativeState, saveNarrative, setIsDraftMode, isLoading]);
 
@@ -562,7 +646,7 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
                 fontSize: '16px',
                 lineHeight: '1.6',
                 color: 'white',
-                padding: '16px 0px 0px', // Set to 16px top padding
+                padding: '16px 0px 560px', // Added 560px bottom padding for typing space
                 margin: '0'
               }}
               onClick={() => editor?.commands.focus()}
@@ -570,9 +654,9 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
                 // Prevent tab from moving focus to next component
                 if (e.key === 'Tab') {
                   e.preventDefault();
-                  // Insert a tab character instead
+                  // Insert non-breaking spaces as indentation
                   if (editor) {
-                    editor.commands.insertContent('\t');
+                    editor.chain().focus().insertContent('\u00A0\u00A0\u00A0\u00A0').run();
                   }
                 }
               }}
