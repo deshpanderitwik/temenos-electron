@@ -379,12 +379,14 @@ export default function SessionLayout() {
     try {
       const narrative = await ipcService.getNarrative(narrativeId);
       if (narrative) {
-        setCurrentNarrative(narrative);
-        
-        // Restore the preferred mode for this narrative
+        // ✅ Set the mode FIRST to ensure proper sequencing
         if (narrative.preferredMode) {
           setIsDraftMode(narrative.preferredMode === 'draft');
         }
+        
+        // ✅ Then set the narrative - this ensures both pieces of state
+        // are updated together, preventing race conditions
+        setCurrentNarrative(narrative);
       }
     } catch (error) {
       // Silent error handling for privacy
@@ -406,12 +408,14 @@ export default function SessionLayout() {
   };
 
   const handleNarrativeUpdate = (updatedNarrative: Narrative | null) => {
-    setCurrentNarrative(updatedNarrative);
-    
-    // Restore the preferred mode for this narrative
+    // ✅ Set the mode FIRST to ensure proper sequencing
     if (updatedNarrative?.preferredMode) {
       setIsDraftMode(updatedNarrative.preferredMode === 'draft');
     }
+    
+    // ✅ Then set the narrative - this ensures both pieces of state
+    // are updated together, preventing race conditions
+    setCurrentNarrative(updatedNarrative);
     
     // Refresh preloaded narratives after update
     if (updatedNarrative) {

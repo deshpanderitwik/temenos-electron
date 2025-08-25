@@ -82,6 +82,7 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
   const [isSaving, setIsSaving] = useState(false);
   const [titleOpacity, setTitleOpacity] = useState(0.95);
   const [isScrolling, setIsScrolling] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   
   // Essential refs only
@@ -112,9 +113,12 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
     content: '<p></p>',
     immediatelyRender: false,
     parseOptions: {
-      preserveWhitespace: true,
+      preserveWhitespace: 'full',
     },
     onUpdate: ({ editor }) => {
+      // ✅ Prevent content updates while loading to avoid race conditions
+      if (isLoading) return;
+      
       // Get content from editor
       const content = getEditorContent(editor);
       
@@ -239,53 +243,57 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
     };
   }, [editor, handleScroll, findScrollableContainer]);
 
-  // Load narrative data when currentNarrative changes
+  // Consolidated narrative loading and mode handling
   useEffect(() => {
-    if (currentNarrative) {
-      setNarrativeState({
-        id: currentNarrative.id,
-        title: currentNarrative.title || 'New Narrative',
-        mainContent: currentNarrative.content || '',
-        draftContent: currentNarrative.draftContent || '',
-        lastSaved: null,
-        hasUnsavedChanges: false
-      });
-      
-      // Load the appropriate content based on current mode (no cross-contamination)
-      const contentToLoad = isDraftMode 
-        ? (currentNarrative.draftContent || '<p></p>')
-        : (currentNarrative.content || '<p></p>');
-      
-      if (editor) {
-        editor.commands.setContent(contentToLoad, false, { preserveWhitespace: true });
+    if (!editor || editor.isDestroyed) return;
+    
+    setIsLoading(true);
+    
+    try {
+      if (currentNarrative) {
+        // First, update the narrative state with all the data
+        setNarrativeState({
+          id: currentNarrative.id,
+          title: currentNarrative.title || 'New Narrative',
+          mainContent: currentNarrative.content || '',
+          draftContent: currentNarrative.draftContent || '',
+          lastSaved: null,
+          hasUnsavedChanges: false
+        });
+        
+        // Then, load the appropriate content based on current mode
+        const contentToLoad = isDraftMode 
+          ? (currentNarrative.draftContent || '<p></p>')
+          : (currentNarrative.content || '<p></p>');
+        
+        // Only set content if it's different to prevent cursor jumping
+        const currentContent = editor.getHTML();
+        if (currentContent !== contentToLoad) {
+          editor.commands.setContent(contentToLoad, false, { preserveWhitespace: 'full' });
+        }
+      } else {
+        // Reset to default state when no narrative is selected
+        setNarrativeState({
+          id: null,
+          title: 'New Narrative',
+          mainContent: '',
+          draftContent: '',
+          lastSaved: null,
+          hasUnsavedChanges: false
+        });
+        
+        // Only set content if it's different to prevent cursor jumping
+        const currentContent = editor.getHTML();
+        if (currentContent !== '<p></p>') {
+          editor.commands.setContent('<p></p>', false, { preserveWhitespace: 'full' });
+        }
       }
-    } else {
-      // Reset to default state when no narrative is selected
-      setNarrativeState({
-        id: null,
-        title: 'New Narrative',
-        mainContent: '',
-        draftContent: '',
-        lastSaved: null,
-        hasUnsavedChanges: false
-      });
-      
-      if (editor) {
-        editor.commands.setContent('<p></p>', false, { preserveWhitespace: true });
-      }
+    } catch (error) {
+      console.error('Error loading narrative:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [currentNarrative, editor]);
-
-  // Handle mode changes - load appropriate content (no cross-contamination)
-  useEffect(() => {
-    if (editor && currentNarrative) {
-      const contentToLoad = isDraftMode 
-        ? (narrativeState.draftContent || '<p></p>')
-        : (narrativeState.mainContent || '<p></p>');
-      
-      editor.commands.setContent(contentToLoad, false, { preserveWhitespace: true });
-    }
-  }, [isDraftMode, editor, currentNarrative, narrativeState]);
+  }, [currentNarrative, editor, isDraftMode]); // ✅ All dependencies included
 
   // Simple auto-save function
   const handleAutoSave = useCallback(async () => {
@@ -363,7 +371,7 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
 
   // Simple mode switch function
   const handleModeSwitch = useCallback(async () => {
-    if (!editor) return;
+    if (!editor || isLoading) return; // ✅ Prevent mode switching while loading
     
     // Save current content before switching
     await saveNarrative();
@@ -377,9 +385,12 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
       ? narrativeState.draftContent || '<p></p>'
       : narrativeState.mainContent || '<p></p>';
     
-    // Set content
-    editor.commands.setContent(contentToLoad, false, { preserveWhitespace: true });
-  }, [editor, isDraftMode, narrativeState, saveNarrative, setIsDraftMode]);
+    // Set content only if different to prevent cursor jumping
+    const currentContent = editor.getHTML();
+    if (currentContent !== contentToLoad) {
+      editor.commands.setContent(contentToLoad, false, { preserveWhitespace: 'full' });
+    }
+  }, [editor, isDraftMode, narrativeState, saveNarrative, setIsDraftMode, isLoading]);
 
   // Simple save current content function
   const saveCurrentContent = async () => {
@@ -468,6 +479,13 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
 
   return (
     <div className="h-full flex flex-col bg-[#141414]">
+      {/* Loading indicator */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-[#141414]/80 flex items-center justify-center z-50">
+          <div className="text-white text-lg">Loading narrative...</div>
+        </div>
+      )}
+      
       {/* Title and Editor Content grouped for unified nudge */}
       <div className="narrative-content-wrapper pt-12 pl-4 h-full flex flex-col">
         <div className="w-[664px] mx-auto h-full flex flex-col">
@@ -478,6 +496,9 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
               className="narrative-title text-2xl font-apoc-sans text-white outline-none border-none bg-transparent w-full transition-all duration-200 px-6"
               value={narrativeState.title}
               onChange={e => {
+                // ✅ Prevent title updates while loading to avoid race conditions
+                if (isLoading) return;
+                
                 const newTitle = e.target.value;
                 setNarrativeState(prev => ({
                   ...prev,
@@ -545,6 +566,16 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
                 margin: '0'
               }}
               onClick={() => editor?.commands.focus()}
+              onKeyDown={(e) => {
+                // Prevent tab from moving focus to next component
+                if (e.key === 'Tab') {
+                  e.preventDefault();
+                  // Insert a tab character instead
+                  if (editor) {
+                    editor.commands.insertContent('\t');
+                  }
+                }
+              }}
             />
           </div>
         </div>
