@@ -56,7 +56,6 @@ export default function ContextForm({ isOpen, onClose, onCreated, initialContext
         setError('Failed to save context.');
       }
     } catch (err) {
-      console.error('Error saving context:', err);
       setError('Failed to save context.');
     } finally {
       setLoading(false);

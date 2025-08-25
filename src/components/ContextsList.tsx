@@ -53,7 +53,6 @@ export default function ContextsList({
       setContexts(data.contexts || []);
     } catch (error) {
       // Silent error handling for privacy
-      console.error('Error loading contexts:', error);
     }
   };
 
@@ -76,7 +75,6 @@ export default function ContextsList({
         onContextSelect(fullContext);
       }
     } catch (error) {
-      console.error('Error fetching full context:', error);
       // Fallback to metadata-only selection
       setSelectedContextId(contextMetadata.id);
       // Create a minimal context object for the callback
@@ -98,10 +96,9 @@ export default function ContextsList({
         }
         onDeleteContext(contextId);
       } else {
-        console.error('Failed to delete context:', result);
+        // Failed to delete context
       }
     } catch (error) {
-      console.error('Error deleting context:', error);
       // Silent error handling for privacy
     }
   };

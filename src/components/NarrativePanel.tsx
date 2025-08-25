@@ -81,6 +81,7 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
   // Simple state variables
   const [isSaving, setIsSaving] = useState(false);
   const [titleOpacity, setTitleOpacity] = useState(0.95);
+  const [isScrolling, setIsScrolling] = useState(false);
 
   
   // Essential refs only
@@ -158,6 +159,86 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
     }
   }, [editor]);
 
+  // Enhanced scroll detection for Electron - finds the actual scrollable container
+  const findScrollableContainer = useCallback((element: HTMLElement | null): HTMLElement | null => {
+    if (!element) return null;
+    
+    // Check if current element is scrollable
+    const style = getComputedStyle(element);
+    const isScrollable = style.overflowY === 'auto' || 
+                        style.overflowY === 'scroll' || 
+                        style.overflow === 'auto' || 
+                        style.overflow === 'scroll';
+    
+    if (isScrollable) {
+      return element;
+    }
+    
+    // Recursively check parent elements
+    return findScrollableContainer(element.parentElement);
+  }, []);
+
+  // Enhanced scroll handler with smooth opacity transition
+  const handleScroll = useCallback(() => {
+    // Find the actual scrollable container
+    const editorElement = editor?.view?.dom;
+    if (!editorElement) return;
+    
+    const scrollableContainer = findScrollableContainer(editorElement);
+    if (!scrollableContainer) return;
+    
+    const scrollTop = scrollableContainer.scrollTop;
+    
+    // Smooth opacity transition
+    const fadeStart = 50;
+    const fadeEnd = 200;
+    
+    let newOpacity;
+    if (scrollTop <= fadeStart) {
+      newOpacity = 0.95;
+    } else if (scrollTop >= fadeEnd) {
+      newOpacity = 0.3; // Much lower opacity when scrolling - 30%
+    } else {
+      // Smooth transition between fadeStart and fadeEnd
+      const fadeProgress = (scrollTop - fadeStart) / (fadeEnd - fadeStart);
+      newOpacity = 0.95 - (fadeProgress * 0.65); // 0.95 to 0.3
+    }
+    
+    setTitleOpacity(newOpacity);
+    setIsScrolling(scrollTop > 0);
+  }, [editor, findScrollableContainer]);
+
+  // Robust scroll event listener setup for Electron
+  useEffect(() => {
+    if (!editor) return;
+    
+    // Wait for editor to be fully rendered
+    const setupScrollListener = () => {
+      const editorElement = editor.view?.dom;
+      if (!editorElement) return;
+      
+      const scrollableContainer = findScrollableContainer(editorElement);
+      if (!scrollableContainer) return;
+      
+      // Add scroll listener with passive: true for better performance
+      scrollableContainer.addEventListener('scroll', handleScroll, { passive: true });
+      
+      // Initial opacity calculation
+      handleScroll();
+      
+      return () => {
+        scrollableContainer.removeEventListener('scroll', handleScroll);
+      };
+    };
+    
+    // Small delay to ensure editor is fully rendered
+    const timeoutId = setTimeout(setupScrollListener, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [editor, handleScroll, findScrollableContainer]);
+
   // Load narrative data when currentNarrative changes
   useEffect(() => {
     if (currentNarrative) {
@@ -229,7 +310,7 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
         }));
       }
     } catch (error) {
-      console.error('Error auto-saving narrative:', error);
+      // Silent error handling for privacy
     } finally {
       setIsSaving(false);
     }
@@ -274,7 +355,7 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
         onSave?.();
       }
     } catch (error) {
-      console.error('Error saving narrative:', error);
+      // Silent error handling for privacy
     } finally {
       setIsSaving(false);
     }
@@ -389,9 +470,9 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
     <div className="h-full flex flex-col bg-[#141414]">
       {/* Title and Editor Content grouped for unified nudge */}
       <div className="narrative-content-wrapper pt-12 pl-4 h-full flex flex-col">
-        <div className="w-[664px] mx-auto">
+        <div className="w-[664px] mx-auto h-full flex flex-col">
           {/* Title is independent of mode changes - remains the same in both main and draft modes */}
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <input
               type="text"
               className="narrative-title text-2xl font-apoc-sans text-white outline-none border-none bg-transparent w-full transition-all duration-200 px-6"
@@ -434,16 +515,33 @@ const NarrativePanel = forwardRef<NarrativePanelRef, NarrativePanelProps>(({ cur
           </div>
 
           {/* Editor Content */}
-          <div className="narrative-editor-content flex-1 min-h-0 overflow-y-auto px-6 pt-4">
+          <div 
+            className="narrative-editor-content flex-1 overflow-y-auto px-6 relative"
+            style={{
+              minHeight: '0', // Critical: allows flex item to shrink below content size
+              paddingTop: '8px', // Set to 8px padding
+              paddingBottom: '0' // Remove bottom padding to eliminate gap
+            }}
+            ref={scrollContainerRef}
+          >
+            {/* Gradient fade over the text area */}
+            <div 
+              className="absolute left-0 right-0 pointer-events-none z-10"
+              style={{
+                height: '24px',
+                background: 'linear-gradient(to bottom, rgba(20, 20, 20, 1) 0%, rgba(20, 20, 20, 0.9) 30%, rgba(20, 20, 20, 0.6) 60%, transparent 100%)'
+              }}
+            />
+            
             <EditorContent 
               editor={editor} 
-              className="narrative-editor bg-[#141414] h-full focus:outline-none"
+              className="narrative-editor bg-[#141414] w-full focus:outline-none"
               style={{
                 fontFamily: 'var(--font-dm-sans)',
                 fontSize: '16px',
                 lineHeight: '1.6',
                 color: 'white',
-                padding: '0',
+                padding: '16px 0px 0px', // Set to 16px top padding
                 margin: '0'
               }}
               onClick={() => editor?.commands.focus()}

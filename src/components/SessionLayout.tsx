@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import NarrativePanel, { NarrativePanelRef } from './NarrativePanel';
 import ChatPanel from './ChatPanel';
 import ConversationList from './ConversationList';
@@ -79,6 +79,11 @@ export default function SessionLayout() {
     // Trigger refresh of the system prompts list
     setSystemPromptsRefreshTrigger(prev => prev + 1);
   };
+
+  // Memoized callback for system prompt creation to prevent infinite loops
+  const handleSystemPromptCreated = useCallback(() => {
+    setSystemPromptsRefreshTrigger(prev => prev + 1);
+  }, []);
   const [selectedModel, setSelectedModel] = useState(() => {
     // Load saved model from localStorage on component mount
     if (typeof window !== 'undefined') {
@@ -693,7 +698,7 @@ export default function SessionLayout() {
             preloadedPrompts={preloadedSystemPrompts}
             onNewPrompt={handleNewSystemPrompt}
             onDeletePrompt={handleDeleteSystemPrompt}
-            onPromptCreated={() => setSystemPromptsRefreshTrigger(prev => prev + 1)}
+            onPromptCreated={handleSystemPromptCreated}
             refreshTrigger={systemPromptsRefreshTrigger}
           />
         )}

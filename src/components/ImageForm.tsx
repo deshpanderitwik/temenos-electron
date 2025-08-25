@@ -126,7 +126,6 @@ export default function ImageForm({ isOpen, onClose, onCreated, initialImage, vi
       setPreviewUrl(null);
       onClose();
     } catch (err) {
-      console.error('Upload error:', err);
       setError('Failed to upload image.');
     } finally {
       setLoading(false);

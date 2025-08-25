@@ -66,7 +66,6 @@ export default function SystemPromptForm({ isOpen, onClose, onCreated, initialPr
         setError('Failed to save system prompt.');
       }
     } catch (err) {
-      console.error('Error saving system prompt:', err);
       setError('Failed to save system prompt.');
     } finally {
       setLoading(false);

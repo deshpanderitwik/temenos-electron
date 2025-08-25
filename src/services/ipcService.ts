@@ -113,15 +113,10 @@ class IPCService {
   }
 
   async saveNarrative(id: string, narrative: Partial<Narrative>): Promise<{ success: boolean; narrativeId: string; title: string }> {
-    console.log('🚀 ipcService.saveNarrative called with:', { id, narrative, isElectron });
-    
     if (isElectron) {
-      console.log('🔌 Calling Electron API...');
       const result = await (window as any).electronAPI.saveNarrative(id, narrative);
-      console.log('🔌 Electron API result:', result);
       return result;
     } else {
-      console.log('🌐 Using fetch API...');
       const response = await fetch(`${API_BASE}/narratives`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -344,15 +339,10 @@ class IPCService {
 
   // Healing API (special case)
   async sendHealingMessage(messages: Array<{ role: string; content: string }>, model: string, systemPrompt: string): Promise<any> {
-    console.log('🔌 ipcService.sendHealingMessage called:', { isElectron, messageCount: messages.length, model, systemPromptLength: systemPrompt.length });
-    
     if (isElectron) {
-      console.log('🔌 Calling Electron API...');
       const result = await (window as any).electronAPI.sendHealingMessage(messages, model, systemPrompt);
-      console.log('🔌 Electron API result:', result);
       return result;
     } else {
-      console.log('🌐 Using fetch API...');
       const response = await fetch(`${API_BASE}/healing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

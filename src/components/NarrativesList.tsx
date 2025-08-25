@@ -74,10 +74,9 @@ export default function NarrativesList({
         setNarratives(prev => prev.filter(n => n.id !== narrativeId));
         onDeleteNarrative(narrativeId);
       } else {
-        console.error('Failed to delete narrative:', result);
+        // Failed to delete narrative
       }
     } catch (error) {
-      console.error('Error deleting narrative:', error);
       // Silent error handling for privacy
     }
   };

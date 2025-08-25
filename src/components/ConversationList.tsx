@@ -66,10 +66,9 @@ export default function ConversationList({
         setConversations(prev => prev.filter(conv => conv.id !== conversationId));
         onDeleteConversation(conversationId);
       } else {
-        console.error('Failed to delete conversation:', result);
+        // Failed to delete conversation
       }
     } catch (error) {
-      console.error('Error deleting conversation:', error);
       // Silent error handling for privacy
     }
   };

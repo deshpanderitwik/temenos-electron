@@ -35,16 +35,13 @@ export default function ImageViewer({
       try {
         if (image.url.startsWith('ipc://')) {
           // Handle IPC images
-          console.log('🖼️ Loading IPC image:', image.id);
           const imageId = image.url.replace('ipc://images/', '').replace('/content', '');
           const result = await ipcService.getImageContent(imageId);
           
           if (result.success) {
             const dataUrl = `data:${result.mimeType};base64,${result.data}`;
             setDisplayUrl(dataUrl);
-            console.log('✅ IPC image loaded successfully');
           } else {
-            console.error('❌ Failed to load IPC image');
             setImageError(true);
           }
         } else {
@@ -52,7 +49,6 @@ export default function ImageViewer({
           setDisplayUrl(image.url);
         }
       } catch (error) {
-        console.error('❌ Error loading image:', error);
         setImageError(true);
       }
     };

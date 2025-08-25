@@ -41,7 +41,6 @@ export async function encrypt(data: string, password: string): Promise<string> {
     
     return result.toString('base64');
   } catch (error) {
-    console.error('Encryption error:', error);
     throw new Error('Encryption failed');
   }
 }
@@ -73,7 +72,6 @@ export async function decrypt(encryptedData: string, password: string): Promise<
     
     return decrypted.toString('utf8');
   } catch (error) {
-    console.error('Decryption error:', error);
     throw new Error('Decryption failed');
   }
 }

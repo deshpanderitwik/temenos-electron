@@ -49,7 +49,7 @@ export default function ImagesList({
   useEffect(() => {
     if (isOpen) {
       if (preloadedImages && preloadedImages.length > 0) {
-        console.log('🖼️ Using preloaded images:', preloadedImages);
+
         
         // Filter out any invalid images from preloaded data too
         const validPreloadedImages = preloadedImages.filter(img => {
@@ -58,20 +58,20 @@ export default function ImagesList({
                          img.lastModified && !isNaN(new Date(img.lastModified).getTime());
           
           if (!isValid) {
-            console.warn('🖼️ Filtering out invalid preloaded image:', img);
+            // Filter out invalid image
           }
           
           return isValid;
         });
         
-        console.log('🖼️ Valid preloaded images after filtering:', validPreloadedImages);
+
         
         // Use preloaded data if available, sorted by creation date (newest first)
         const sortedImages = validPreloadedImages.sort((a, b) => 
           new Date(b.created).getTime() - new Date(a.created).getTime()
         );
         
-        console.log('🖼️ Final sorted preloaded images:', sortedImages);
+
         setImages(sortedImages);
       } else {
         // Fallback to API call if no preloaded data
@@ -86,7 +86,6 @@ export default function ImagesList({
   const loadImages = async () => {
     try {
       const data = await ipcService.getImages();
-      console.log('🖼️ Raw images data from IPC:', data);
       
       if (data.images) {
         // Filter out any invalid images (empty titles, invalid dates)
@@ -96,25 +95,24 @@ export default function ImagesList({
                          img.lastModified && !isNaN(new Date(img.lastModified).getTime());
           
           if (!isValid) {
-            console.warn('🖼️ Filtering out invalid image:', img);
+            // Filter out invalid image
           }
           
           return isValid;
         });
         
-        console.log('🖼️ Valid images after filtering:', validImages);
+
         
         // Sort images by last modified date (newest first)
         const sortedImages = validImages.sort((a, b) => 
           new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
         );
         
-        console.log('🖼️ Final sorted images:', sortedImages);
+
         setImages(sortedImages);
       }
     } catch (error) {
       // Silent error handling for privacy
-      console.error('Error loading images:', error);
     }
   };
 
@@ -126,10 +124,9 @@ export default function ImagesList({
         setImages(prev => prev.filter(img => img.id !== imageId));
         onDeleteImage(imageId);
       } else {
-        console.error('Failed to delete image:', result);
+        // Failed to delete image
       }
     } catch (error) {
-      console.error('Error deleting image:', error);
       // Silent error handling for privacy
     }
   };

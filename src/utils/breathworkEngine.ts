@@ -106,7 +106,7 @@ export class BreathworkEngine {
 
   // Stop the session
   stop(): void {
-    console.log('Engine stop called, session exists:', !!this.session);
+
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
@@ -125,7 +125,7 @@ export class BreathworkEngine {
 
   // Reset the session
   reset(): void {
-    console.log('Engine reset called');
+
     this.stop();
     if (this.session) {
       this.session.currentRound = 1;

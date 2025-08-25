@@ -41,25 +41,19 @@ export default function SystemPromptsList({
   const [prompts, setPrompts] = useState<SystemPrompt[]>([]);
 
   useEffect(() => {
-    console.log('🔄 SystemPromptsList useEffect triggered:', { isOpen, refreshKey, hasPreloaded: !!preloadedPrompts });
-    
     if (isOpen) {
       // If refreshKey changed, we need to refresh the data
       if (refreshKey > 0) {
-        console.log('🔄 Refreshing prompts due to refreshKey:', refreshKey);
         loadPrompts();
       } else if (preloadedPrompts && preloadedPrompts.length > 0) {
         // Use preloaded data if available and no refresh is needed
-        console.log('🔄 Using preloaded prompts:', preloadedPrompts.length);
         setPrompts(preloadedPrompts);
       } else {
         // Fallback to API call if no preloaded data
-        console.log('🔄 Loading prompts via API call');
         loadPrompts();
       }
     } else {
       // Reset state when modal closes
-      console.log('🔄 Modal closed, resetting prompts');
       setPrompts([]);
     }
   }, [isOpen, preloadedPrompts, refreshKey]);
@@ -89,7 +83,7 @@ export default function SystemPromptsList({
         new Date(b.created).getTime() - new Date(a.created).getTime()
       );
       
-      console.log('📝 loadPrompts: Setting fetched prompts');
+
       
       // Always preserve the default prompt's position if it exists in current state
       if (prompts.length > 0) {
@@ -110,7 +104,6 @@ export default function SystemPromptsList({
       }
     } catch (error) {
       // Silent error handling
-      console.error('Error loading prompts:', error);
     }
   };
 
@@ -121,7 +114,6 @@ export default function SystemPromptsList({
       const data = await ipcService.getSystemPrompt(promptId);
       return data;
     } catch (error) {
-      console.error('Error fetching full prompt:', error);
       return null;
     }
   };

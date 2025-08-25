@@ -182,9 +182,9 @@ export function useBreathworkSound(): UseBreathworkSoundReturn {
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem('breathwork-muted', JSON.stringify(newMutedState));
-        } catch (error) {
-          console.error('Error saving mute state:', error);
-        }
+            } catch (error) {
+      // Silent error handling
+    }
       }
       return newMutedState;
     });

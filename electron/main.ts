@@ -39,9 +39,7 @@ const getDataPath = (dataDir: string) => {
 
 // Initialize data directories
 const initializeDataDirectories = async () => {
-  console.log(`🔧 App is packaged: ${app.isPackaged}`);
-  console.log(`🔧 User data path: ${app.getPath('userData')}`);
-  console.log(`🔧 Current working directory: ${process.cwd()}`);
+
   
   const dataTypes = ['narratives', 'contexts', 'conversations', 'system-prompts', 'images'];
   
@@ -49,9 +47,9 @@ const initializeDataDirectories = async () => {
     const dataPath = getDataPath(dataType);
     try {
       await fs.mkdir(dataPath, { recursive: true });
-      console.log(`📁 Created data directory: ${dataPath}`);
+      // Created data directory
     } catch (error) {
-      console.error(`❌ Failed to create data directory ${dataPath}:`, error);
+      // Failed to create data directory
     }
   }
   
@@ -71,18 +69,16 @@ const migrateDataFromDevelopment = async () => {
     // Check if development data exists and production data is empty
     const devDataExists = await fs.access(devDataPath).then(() => true).catch(() => false);
     if (!devDataExists) {
-      console.log('📁 No development data to migrate');
       return;
     }
     
     // Check if production data already exists
     const prodDataExists = await fs.access(prodDataPath).then(() => true).catch(() => false);
     if (prodDataExists) {
-      console.log('📁 Production data already exists, skipping migration');
       return;
     }
     
-    console.log('🔄 Migrating data from development to production...');
+    // Migrating data from development to production
     
     // Copy all data directories
     const dataTypes = ['narratives', 'contexts', 'conversations', 'system-prompts', 'images'];
@@ -93,16 +89,16 @@ const migrateDataFromDevelopment = async () => {
       try {
         if (await fs.access(sourcePath).then(() => true).catch(() => false)) {
           await fs.cp(sourcePath, targetPath, { recursive: true });
-          console.log(`✅ Migrated ${dataType} data`);
+          // Migrated data
         }
       } catch (error) {
-        console.error(`❌ Failed to migrate ${dataType}:`, error);
+        // Failed to migrate data
       }
     }
     
-    console.log('✅ Data migration completed');
+    // Data migration completed
   } catch (error) {
-    console.error('❌ Data migration failed:', error);
+    // Data migration failed
   }
 };
 
@@ -138,7 +134,7 @@ function createWindow(): void {
       path.join(process.resourcesPath, 'app.asar.unpacked', 'out') : 
       path.join(process.cwd(), 'out');
     
-    console.log('🔧 Serving static files from:', staticDir);
+
     
     const server = createServer(async (req: any, res: any) => {
       try {
@@ -186,14 +182,12 @@ function createWindow(): void {
         res.writeHead(200, { 'Content-Type': contentType });
         res.end(content);
       } catch (error) {
-        console.error('Error serving file:', error);
         res.writeHead(404);
         res.end('File not found');
       }
     });
     
     server.listen(3001, () => {
-      console.log('🔧 Static server running on http://localhost:3001');
       mainWindow?.loadURL('http://localhost:3001');
     });
   }
@@ -226,7 +220,7 @@ function setupIPCHandlers(): void {
     ipcMain.handle(`get-${dataType}`, async () => {
       try {
         const dataPath = getDataPath(dataDir);
-        console.log(`🔍 Getting ${dataType} from: ${dataPath} (isDev: ${isDev})`);
+
         
         const files = await fs.readdir(dataPath);
         const items = [];
@@ -240,7 +234,7 @@ function setupIPCHandlers(): void {
           }
         }
         
-        console.log(`✅ Found ${items.length} ${dataType}`);
+
         
         // Return in the format expected by the frontend
         if (dataType === 'system-prompts') {
@@ -255,7 +249,6 @@ function setupIPCHandlers(): void {
           return { [dataType]: items.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()) };
         }
       } catch (error) {
-        console.error(`Error getting ${dataType}:`, error);
         return { [dataType]: [] };
       }
     });
@@ -268,7 +261,6 @@ function setupIPCHandlers(): void {
         const content = await fs.readFile(filePath, 'utf-8');
         return JSON.parse(content);
       } catch (error) {
-        console.error(`Error getting ${dataType.slice(0, -1)} ${id}:`, error);
         throw new Error(`${dataType.slice(0, -1)} not found`);
       }
     });
@@ -290,7 +282,7 @@ function setupIPCHandlers(): void {
         const filePath = path.join(dataPath, `${id}.json`);
         await fs.writeFile(filePath, JSON.stringify(item, null, 2));
         
-        console.log(`✅ Saved ${dataType.slice(0, -1)} ${id} to ${filePath}`);
+
         
         return { 
           success: true, 
@@ -298,7 +290,6 @@ function setupIPCHandlers(): void {
           title: data.title || id 
         };
       } catch (error) {
-        console.error(`Error saving ${dataType.slice(0, -1)} ${id}:`, error);
         throw new Error(`Failed to save ${dataType.slice(0, -1)}`);
       }
     });
@@ -311,7 +302,6 @@ function setupIPCHandlers(): void {
         await fs.unlink(filePath);
         return { success: true };
       } catch (error) {
-        console.error(`Error deleting ${dataType.slice(0, -1)} ${id}:`, error);
         throw new Error(`Failed to delete ${dataType.slice(0, -1)}`);
       }
     });
@@ -323,7 +313,7 @@ function setupIPCHandlers(): void {
     ipcMain.handle('get-conversations', async () => {
       try {
         const dataPath = getDataPath('conversations');
-        console.log('🔍 Getting conversations from:', dataPath);
+
         
         await fs.mkdir(dataPath, { recursive: true });
         
@@ -344,10 +334,8 @@ function setupIPCHandlers(): void {
           new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
         );
         
-        console.log(`✅ Found ${sortedConversations.length} conversations`);
         return { conversations: sortedConversations };
       } catch (error) {
-        console.error('Error getting conversations:', error);
         return { conversations: [] };
       }
     });
@@ -356,15 +344,11 @@ function setupIPCHandlers(): void {
       try {
         const dataPath = getDataPath('conversations');
         const filePath = path.join(dataPath, `${id}.json`);
-        console.log('🔍 Getting conversation from:', filePath);
-        
         const content = await fs.readFile(filePath, 'utf-8');
         const conversation = JSON.parse(content);
         
-        console.log('✅ Retrieved conversation:', conversation.title);
         return conversation;
       } catch (error) {
-        console.error('Error getting conversation:', error);
         throw new Error(`Conversation not found: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
@@ -373,14 +357,10 @@ function setupIPCHandlers(): void {
       try {
         const dataPath = getDataPath('conversations');
         const filePath = path.join(dataPath, `${id}.json`);
-        console.log('🗑️ Deleting conversation from:', filePath);
-        
         await fs.unlink(filePath);
         
-        console.log('✅ Deleted conversation:', id);
         return { success: true };
       } catch (error) {
-        console.error('Error deleting conversation:', error);
         throw new Error(`Failed to delete conversation: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
@@ -405,15 +385,10 @@ function setupIPCHandlers(): void {
         };
         
         const filePath = path.join(dataPath, `${id}.json`);
-        console.log('💾 Writing conversation to file:', filePath);
-        
         await fs.writeFile(filePath, JSON.stringify(conversation, null, 2));
-        
-        console.log(`✅ Saved conversation ${id} to ${filePath}`);
         
         return { success: true, conversationId: id, title };
       } catch (error) {
-        console.error('Error saving conversation:', error);
         throw new Error(`Failed to save conversation: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
@@ -457,11 +432,8 @@ function setupIPCHandlers(): void {
           url: imageUrl
         };
         
-        console.log(`✅ Uploaded image ${id} to ${dataPath}`);
-        
         return { success: true, image };
       } catch (error) {
-        console.error('Error uploading image:', error);
         throw new Error('Failed to upload image');
       }
     });
@@ -469,30 +441,22 @@ function setupIPCHandlers(): void {
     // Healing API - special handling for AI responses
     ipcMain.handle('send-healing-message', async (event, messages: any[], model: string, systemPrompt: string) => {
       try {
-        console.log('🤖 Processing healing message:', { model, systemPrompt, messageCount: messages.length });
-        
         // Get xAI API key from multiple sources (build-time env vars, runtime config, or user config)
         let xaiApiKey = process.env['XAI_API_KEY'];
-        console.log('🔑 Environment XAI_API_KEY:', xaiApiKey ? 'Set' : 'Not set');
         
         // If not in environment, try to load from user config file
         if (!xaiApiKey) {
           try {
             const userConfigPath = path.join(app.getPath('userData'), 'config.json');
-            console.log('🔍 Looking for user config at:', userConfigPath);
             
             if (await fs.access(userConfigPath).then(() => true).catch(() => false)) {
               const configContent = await fs.readFile(userConfigPath, 'utf-8');
               const userConfig = JSON.parse(configContent);
-              console.log('📁 User config content:', Object.keys(userConfig));
               
               xaiApiKey = xaiApiKey || userConfig.XAI_API_KEY;
-              console.log('🔧 Loaded xAI API key from user config:', xaiApiKey ? 'Success' : 'Failed');
-            } else {
-              console.log('❌ User config file not found');
             }
           } catch (error) {
-            console.log('🔧 Error reading user config:', error instanceof Error ? error.message : 'Unknown error');
+            // Silent error handling
           }
         }
         
@@ -545,14 +509,11 @@ function setupIPCHandlers(): void {
           throw new Error(`Model '${model}' not supported. Supported models: 'grok', 'grok-4-0709'`);
         }
         
-        console.log('✅ AI response generated successfully');
-        
         return {
           response: aiResponse,
           usage
         };
       } catch (error) {
-        console.error('Error sending healing message:', error);
         throw new Error(`Failed to send healing message: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
@@ -562,15 +523,11 @@ function setupIPCHandlers(): void {
       try {
         const dataPath = getDataPath('images');
         const filePath = path.join(dataPath, `${id}.json`);
-        console.log('🖼️ Getting image content from:', filePath);
-        
         const content = await fs.readFile(filePath, 'utf-8');
         const image = JSON.parse(content);
         
-        console.log('✅ Retrieved image content:', image.title);
         return image;
       } catch (error) {
-        console.error('Error getting image content:', error);
         throw new Error(`Image not found: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
@@ -583,7 +540,6 @@ function setupIPCHandlers(): void {
         const decrypted = await decrypt(encrypted, process.env['ENCRYPTION_PASSWORD'] || 'default-password-change-me');
         return { success: true, encrypted, decrypted: JSON.parse(decrypted) };
       } catch (error) {
-        console.error('Encryption test failed:', error);
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
       }
     });
@@ -598,7 +554,6 @@ function setupIPCHandlers(): void {
         }
         return {};
       } catch (error) {
-        console.error('Error reading user config:', error);
         return {};
       }
     });
@@ -607,10 +562,8 @@ function setupIPCHandlers(): void {
       try {
         const userConfigPath = path.join(app.getPath('userData'), 'config.json');
         await fs.writeFile(userConfigPath, JSON.stringify(config, null, 2));
-        console.log('✅ User config saved to:', userConfigPath);
         return { success: true };
       } catch (error) {
-        console.error('Error saving user config:', error);
         throw new Error(`Failed to save config: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
@@ -623,17 +576,8 @@ function setupIPCHandlers(): void {
   createCRUDHandlers('images', 'images');
   // Note: conversations handled by special handlers below
   
-  // Debug: Log all registered handlers
-  console.log('🔍 Registered IPC handlers:');
-  console.log('  - get-system-prompts:', ipcMain.listenerCount('get-system-prompts'));
-  console.log('  - get-system-prompt:', ipcMain.listenerCount('get-system-prompt'));
-  console.log('  - save-system-prompt:', ipcMain.listenerCount('save-system-prompt'));
-  console.log('  - delete-system-prompt:', ipcMain.listenerCount('delete-system-prompt'));
-  
   // Create special handlers
   createSpecialHandlers();
-
-  console.log('🔧 IPC handlers setup complete for all data types');
 }
 
 // This method will be called when Electron has finished initialization
@@ -674,4 +618,4 @@ app.on('web-contents-created', (event, contents) => {
   });
 });
 
-console.log('Electron main process started');
+
